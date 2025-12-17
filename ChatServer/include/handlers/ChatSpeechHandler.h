@@ -1,7 +1,7 @@
 #pragma once
 
 #include "router/RouterHandler.h"
-#include "AIUtil/AIConfig.h"
+#include "core/AIConfig.h"
 #include "ChatServer.h"
 
 // 前置声明

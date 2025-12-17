@@ -1,8 +1,8 @@
 #include <sstream>
 
-#include "AIUtil/AIToolRegistry.h"
-#include "AIUtil/WeatherTool.h"
-#include "AIUtil/TimeTool.h"
+#include "core/AIToolRegistry.h"
+#include "core/WeatherTool.h"
+#include "core/TimeTool.h"
 
 AIToolRegistry::AIToolRegistry() {
     // 注册基于类的工具

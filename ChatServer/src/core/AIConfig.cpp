@@ -1,6 +1,6 @@
 #include <muduo/base/Logging.h>
 
-#include "AIUtil/AIConfig.h"
+#include "core/AIConfig.h"
 
 AIConfig::AIConfig() : isLoaded_(false) {
     // 设置默认日志级别为WARN

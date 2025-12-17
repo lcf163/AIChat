@@ -9,7 +9,7 @@
 
 #include "utils/JsonUtil.h"
 
-#include "AIUtil/AIConfig.h"
+#include "core/AIConfig.h"
 
 class AIStrategy {
 public:

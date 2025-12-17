@@ -7,7 +7,7 @@
 #include <muduo/net/EventLoop.h>
 
 #include "utils/JsonUtil.h"
-#include "AIUtil/AIConfig.h"
+#include "core/AIConfig.h"
 #include "ChatServer.h"
 
 // 工作线程绑定的函数

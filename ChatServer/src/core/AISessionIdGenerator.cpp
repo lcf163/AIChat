@@ -1,4 +1,4 @@
-#include "AIUtil/AISessionIdGenerator.h"
+#include "core/AISessionIdGenerator.h"
 #include <sstream>
 #include <iomanip>
 AISessionIdGenerator::AISessionIdGenerator() : generator_(std::make_unique<std::mt19937_64>()) {

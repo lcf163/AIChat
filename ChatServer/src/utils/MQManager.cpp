@@ -1,5 +1,5 @@
 #include "utils/MQManager.h"
-#include "AIUtil/AIConfig.h"
+#include "core/AIConfig.h"
 #include <muduo/base/Logging.h>
 
 // ------------------- MQManager -------------------

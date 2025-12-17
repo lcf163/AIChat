@@ -1,5 +1,5 @@
-#include "AIUtil/AIStrategy.h"
-#include "AIUtil/AIFactory.h"
+#include "core/AIStrategy.h"
+#include "core/AIFactory.h"
 
 namespace {
     // 公共的滑动窗口处理函数

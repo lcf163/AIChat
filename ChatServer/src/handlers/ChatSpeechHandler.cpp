@@ -1,8 +1,8 @@
 #include "handlers/ChatSpeechHandler.h"
 #include "utils/JsonUtil.h"
 #include "utils/ParseJsonUtil.h"
-#include "AIUtil/AIConfig.h"
-#include "AIUtil/AIFactory.h"
+#include "core/AIConfig.h"
+#include "core/AIFactory.h"
 
 void ChatSpeechHandler::handle(const http::HttpRequest& req, http::HttpResponse* resp)
 {

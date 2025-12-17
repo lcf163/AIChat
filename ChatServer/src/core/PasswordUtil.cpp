@@ -1,4 +1,4 @@
-#include "AIUtil/PasswordUtil.h"
+#include "core/PasswordUtil.h"
 #include <openssl/evp.h>
 #include <openssl/rand.h>
 #include <openssl/sha.h>

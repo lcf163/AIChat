@@ -3,7 +3,7 @@
 #include <thread>
 
 #include "utils/JsonUtil.h"
-#include "AIUtil/BaiduSpeechService.h"
+#include "core/BaiduSpeechService.h"
 
 // 定义轮询参数常量
 static const int MAX_POLLING_LOOPS = 60;          // 最多轮询60次

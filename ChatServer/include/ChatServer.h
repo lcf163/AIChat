@@ -15,7 +15,7 @@
 #include "utils/base64.h"
 #include "utils/MQManager.h"
 #include "utils/ThreadPool.h"
-#include "AIUtil/AIHelper.h"
+#include "core/AIHelper.h"
 
 class ChatLoginHandler;
 class ChatRegisterHandler;

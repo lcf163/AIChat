@@ -1,4 +1,4 @@
-#include "AIUtil/WeatherTool.h"
+#include "core/WeatherTool.h"
 #include <curl/curl.h>
 #include <thread>
 #include <chrono>

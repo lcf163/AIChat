@@ -1,5 +1,5 @@
-#include "AIUtil/AIFactory.h"
-#include "AIUtil/BaiduSpeechService.h"
+#include "core/AIFactory.h"
+#include "core/BaiduSpeechService.h"
 
 StrategyFactory& StrategyFactory::instance() {
     static StrategyFactory factory;

@@ -2,7 +2,7 @@
 #include <muduo/base/Logging.h>
 
 #include "utils/MQManager.h"
-#include "AIUtil/AIHelper.h"
+#include "core/AIHelper.h"
 
 // 简单的 SSE 数据解析器 (提取 content)
 std::string parseLLMChunk(const std::string& chunk) {

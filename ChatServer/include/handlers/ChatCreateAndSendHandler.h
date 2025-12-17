@@ -4,7 +4,7 @@
 
 #include "router/RouterHandler.h"
 #include "utils/ParseJsonUtil.h"
-#include "AIUtil/AISessionIdGenerator.h"
+#include "core/AISessionIdGenerator.h"
 #include "ChatServer.h"
 
 class ChatCreateAndSendHandler : public http::router::RouterHandler

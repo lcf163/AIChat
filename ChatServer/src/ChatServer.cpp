@@ -17,7 +17,7 @@
 #include "handlers/SSEChatHandler.h"
 #include "handlers/ChatSpeechHandler.h"
 #include "handlers/AIMenuHandler.h"
-#include "AIUtil/AIConfig.h"
+#include "core/AIConfig.h"
 #include "ChatServer.h"
 
 using namespace http;
