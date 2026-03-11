@@ -14,7 +14,7 @@
 
 ## 项目环境
 ### 环境依赖
-- 操作系统：Ubuntu 22.04
+- 操作系统：Ubuntu 24.04
 - 数据库：mysql 8.0
 - boost_1_69_0
 - muduo
@@ -27,10 +27,10 @@ linux命令安装编译环境，需要时上网搜索相应命令。
 #### 编译器相关
 ```sh
 # 更新包管理器
-sudo apt-get update
+sudo apt update
 
 # 安装基础开发工具
-sudo apt-get install -y build-essential cmake git
+sudo apt-get install -y build-essential cmake git libboost-all-dev
 ```
 #### MySQL 安装
 ```sh
@@ -51,31 +51,32 @@ sudo systemctl enable rabbitmq-server
 ```sh
 # boost
 wget https://archives.boost.io/release/1.69.0/source/boost_1_69_0.tar.gz
-tar -zxvf boost_1_69_0
+tar -zxvf boost_1_69_0.tar.gz
 cd boost_1_69_0
 ./bootstrap.sh
 ./b2
-sudo ./b2 install
+sudo ./b2 install -j $(nproc)
 cd ..
 
 # muduo
 git clone https://github.com/chenshuo/muduo.git
 cd muduo
-./build.sh -j4
-sudo cp -r build/release-cpp11/lib/* /usr/local/lib/
+./build.sh -j $(nproc)
+sudo mkdir -p /usr/local/include/muduo
 sudo cp -r muduo/base/* /usr/local/include/
 sudo cp -r muduo/net/* /usr/local/include/
 cd ..
+sudo cp -r build/release-cpp11/lib/* /usr/local/lib/
+sudo ldconfig
 
 # nlohmann/json
-sudo apt upgrade
 sudo apt install nlohmann-json3-dev
 
 # mysqlcppconn
 sudo apt install libmysqlcppconn-dev
 
 # librabbitmq
-sudo apt-get install -y librabbitmq-dev
+sudo apt install -y librabbitmq-dev
 
 # OpenSSL
 sudo apt install libssl-dev
@@ -86,15 +87,19 @@ sudo apt install libssl-dev
 # 在项目根目录下创建build目录，并进入该目录
 mkdir build
 cd build
-
 # 执行 cmake 命令
 cmake ..
-
 # 编译生成可执行文件
-make
-```  
+make -j $(nproc)
+```
 
 ## 项目运行
+### 导入数据库
+```sh
+# 导入数据库结构
+mysql -u chatserver -p < db.sql
+```
+
 ### 配置文件
 ChatServer/resources/config.json 
 
