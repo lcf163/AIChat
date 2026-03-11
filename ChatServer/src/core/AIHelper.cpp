@@ -1,4 +1,6 @@
 #include <chrono>
+#include <future>
+#include <algorithm>
 #include <muduo/base/Logging.h>
 
 #include "utils/MQManager.h"
@@ -260,7 +262,6 @@ std::string AIHelper::chatImpl(int userId, std::string userName, std::string ses
     json firstReq = strategy->buildRequest(this->messages);
     json firstResp = executeCurl(firstReq); 
     std::string aiResult = strategy->parseResponse(firstResp);
-    LOG_INFO << "First AI response: " << aiResult;
     messages.pop_back();
 
     AIToolCall call = config.parseAIResponse(aiResult);
@@ -269,45 +270,133 @@ std::string AIHelper::chatImpl(int userId, std::string userName, std::string ses
     std::string finalAnswer;
     
     if (call.isToolCall) {
-        std::shared_ptr<Tool> tool = config.getToolRegistry().getTool(call.toolName);
-        if (tool) {
-            json toolParams = tool->getParameters();
-            bool valid = true;
-            std::string errorMsg;
+        // 检查是否是并行工具调用请求
+        if (call.toolName == "parallel_tools" && call.args.contains("tools") && call.args["tools"].is_array()) {
+            // 并行工具调用
+            std::vector<std::future<ToolCallResult>> toolFutures;
+            std::vector<ToolCallResult> toolResults;
             
-            if (toolParams.contains("required") && toolParams["required"].is_array()) {
-                for (const auto& requiredParam : toolParams["required"]) {
-                    if (requiredParam.is_string()) {
-                        std::string paramName = requiredParam.get<std::string>();
-                        if (!call.args.contains(paramName) || 
-                            call.args[paramName].is_null() || 
-                            (call.args[paramName].is_string() && call.args[paramName].get<std::string>().empty())) {
-                            valid = false;
-                            errorMsg = "缺少必要参数: " + paramName;
-                            break;
+            // 启动并行工具调用
+            for (const auto& toolCall : call.args["tools"]) {
+                if (toolCall.is_object() && toolCall.contains("tool") && toolCall.contains("args")) {
+                    std::string toolName = toolCall["tool"];
+                    json toolArgs = toolCall["args"];
+                    
+                    // 异步执行工具调用
+                    toolFutures.push_back(std::async(std::launch::async, [&config, toolName, toolArgs]() {
+                        ToolCallResult result;
+                        result.toolName = toolName;
+                        result.args = toolArgs;
+                        
+                        std::shared_ptr<Tool> tool = config.getToolRegistry().getTool(toolName);
+                        if (tool) {
+                            json toolParams = tool->getParameters();
+                            bool valid = true;
+                            std::string errorMsg;
+                            
+                            if (toolParams.contains("required") && toolParams["required"].is_array()) {
+                                for (const auto& requiredParam : toolParams["required"]) {
+                                    if (requiredParam.is_string()) {
+                                        std::string paramName = requiredParam.get<std::string>();
+                                        if (!toolArgs.contains(paramName) || 
+                                            toolArgs[paramName].is_null() || 
+                                            (toolArgs[paramName].is_string() && toolArgs[paramName].get<std::string>().empty())) {
+                                            valid = false;
+                                            errorMsg = "缺少必要参数: " + paramName;
+                                            break;
+                                        }
+                                    }
+                                }
+                            }
+                            
+                            if (valid) {
+                                try {
+                                    result.result = tool->execute(toolArgs);
+                                    result.success = true;
+                                } catch (const std::exception& e) {
+                                    result.success = false;
+                                    result.errorMessage = std::string(e.what());
+                                }
+                            } else {
+                                result.success = false;
+                                result.errorMessage = errorMsg;
+                            }
+                        } else {
+                            result.success = false;
+                            result.errorMessage = "未找到工具: " + toolName;
+                        }
+                        
+                        return result;
+                    }));
+                }
+            }
+            
+            // 收集工具调用结果
+            for (auto& future : toolFutures) {
+                ToolCallResult result = future.get();
+                toolResults.push_back(result);
+                
+                if (result.success) {
+                    messages.push_back({ "[工具调用结果] " + result.toolName + "\n" + result.result.dump(4), 0 });
+                } else {
+                    messages.push_back({ "[工具执行错误] " + result.toolName + "\n" + result.errorMessage, 0 });
+                }
+            }
+        } else {
+            // 单个工具调用
+            std::shared_ptr<Tool> tool = config.getToolRegistry().getTool(call.toolName);
+            if (tool) {
+                json toolParams = tool->getParameters();
+                bool valid = true;
+                std::string errorMsg;
+                
+                if (toolParams.contains("required") && toolParams["required"].is_array()) {
+                    for (const auto& requiredParam : toolParams["required"]) {
+                        if (requiredParam.is_string()) {
+                            std::string paramName = requiredParam.get<std::string>();
+                            if (!call.args.contains(paramName) || 
+                                call.args[paramName].is_null() || 
+                                (call.args[paramName].is_string() && call.args[paramName].get<std::string>().empty())) {
+                                valid = false;
+                                errorMsg = "缺少必要参数: " + paramName;
+                                break;
+                            }
                         }
                     }
                 }
-            }
-            
-            if (valid) {
-                try {
-                    json toolResult = tool->execute(call.args);
-                    messages.push_back({ "[工具调用结果]\n" + toolResult.dump(4), 0 });
-                } catch (const std::exception& e) {
-                    messages.push_back({ "[工具执行错误]\n" + std::string(e.what()), 0 });
+                
+                if (valid) {
+                    try {
+                        json toolResult = tool->execute(call.args);
+                        messages.push_back({ "[工具调用结果]\n" + toolResult.dump(4), 0 });
+                    } catch (const std::exception& e) {
+                        messages.push_back({ "[工具执行错误]\n" + std::string(e.what()), 0 });
+                    }
+                } else {
+                    messages.push_back({ "[参数验证失败]\n" + errorMsg, 0 });
                 }
             } else {
-                messages.push_back({ "[参数验证失败]\n" + errorMsg, 0 });
+                messages.push_back({ "[工具调用失败]\n未找到工具: " + call.toolName, 0 });
             }
-        } else {
-            messages.push_back({ "[工具调用失败]\n未找到工具: " + call.toolName, 0 });
         }
         
         // 第二步请求
         json secondReq = strategy->buildRequest(this->messages);
         json secondResp = executeCurl(secondReq);
         finalAnswer = strategy->parseResponse(secondResp);
+        
+        // 去除<think>标签和思考过程，只保留实际回答
+        size_t thinkStart = finalAnswer.find("<think>");
+        while (thinkStart != std::string::npos) {
+            size_t thinkEnd = finalAnswer.find("</think>", thinkStart);
+            if (thinkEnd != std::string::npos) {
+                finalAnswer.erase(thinkStart, thinkEnd - thinkStart + 8);
+            } else {
+                break;
+            }
+            thinkStart = finalAnswer.find("<think>");
+        }
+        
         messages.push_back({ finalAnswer, 0 });
     } else {
         // 不需要工具调用，直接使用第一个请求的结果
@@ -338,7 +427,7 @@ json AIHelper::executeCurl(const json& payload, StreamCallback callback) {
         throw std::runtime_error("Failed to initialize curl");
     }
 
-    LOG_INFO << "AI API invoke " << strategy->getApiUrl().c_str() << ' ' << strategy->getApiKey();
+    LOG_INFO << "AI API invoke " << strategy->getApiUrl().c_str();
 
     std::string readBuffer;
     struct curl_slist* headers = nullptr;
@@ -401,7 +490,7 @@ size_t AIHelper::WriteCallback(void* contents, size_t size, size_t nmemb, void* 
     std::string rawData(static_cast<char*>(contents), totalSize);
     ctx->buffer->append(rawData);
     
-    LOG_INFO << "Raw data received (" << totalSize << " bytes): " << rawData;
+    LOG_INFO << "Raw data received (" << totalSize << " bytes)"; // Response content not logged for security and performance
     
     // 实时解析并回调
     if (ctx->callback) {

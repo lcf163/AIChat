@@ -226,14 +226,52 @@ std::string AIConfig::buildPrompt(const std::string& userInput) const {
 AIToolCall AIConfig::parseAIResponse(const std::string& response) const {
     AIToolCall result;
     try {
-        json j = json::parse(response);
-
-        if (j.contains("tool") && j["tool"].is_string()) {
-            result.toolName = j["tool"].get<std::string>();
-            if (j.contains("args") && j["args"].is_object()) {
-                result.args = j["args"];
+        // 去除<think>标签内容
+        std::string cleanResponse = response;
+        size_t thinkStart = cleanResponse.find("<think>");
+        while (thinkStart != std::string::npos) {
+            size_t thinkEnd = cleanResponse.find("</think>", thinkStart);
+            if (thinkEnd != std::string::npos) {
+                cleanResponse.erase(thinkStart, thinkEnd - thinkStart + 8);
+            } else {
+                break;
             }
-            result.isToolCall = true;
+            thinkStart = cleanResponse.find("<think>");
+        }
+        
+        // 尝试直接解析整个响应
+        try {
+            json j = json::parse(cleanResponse);
+            if (j.contains("tool") && j["tool"].is_string()) {
+                result.toolName = j["tool"].get<std::string>();
+                if (j.contains("args") && j["args"].is_object()) {
+                    result.args = j["args"];
+                }
+                result.isToolCall = true;
+                return result;
+            }
+        } catch (...) {
+            // 直接解析失败，尝试从响应中提取JSON
+        }
+        
+        // 从响应中提取JSON部分
+        size_t jsonStart = cleanResponse.find('{');
+        size_t jsonEnd = cleanResponse.rfind('}');
+        
+        if (jsonStart != std::string::npos && jsonEnd != std::string::npos && jsonEnd > jsonStart) {
+            std::string jsonStr = cleanResponse.substr(jsonStart, jsonEnd - jsonStart + 1);
+            try {
+                json j = json::parse(jsonStr);
+                if (j.contains("tool") && j["tool"].is_string()) {
+                    result.toolName = j["tool"].get<std::string>();
+                    if (j.contains("args") && j["args"].is_object()) {
+                        result.args = j["args"];
+                    }
+                    result.isToolCall = true;
+                }
+            } catch (...) {
+                result.isToolCall = false;
+            }
         }
     }
     catch (...) {
@@ -253,6 +291,7 @@ std::string AIConfig::buildToolResultPrompt(
         << "我刚才调用了工具 [" << toolName << "] ，参数为："
         << toolArgs.dump() << "\n"
         << "工具返回的结果如下：\n" << toolResult.dump(4) << "\n"
-        << "请根据以上信息，用自然语言回答用户。";
+        << "请根据以上信息，用自然语言回答用户。\n"
+        << "重要要求：只输出最终结果，不要包含思考过程或多余信息。";
     return oss.str();
 }

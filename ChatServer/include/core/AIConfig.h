@@ -47,6 +47,23 @@ struct AIToolCall {
     bool isToolCall = false;
 };
 
+// 工具调用结果结构
+struct ToolCallResult {
+    std::string toolName;
+    json args;
+    json result;
+    bool success;
+    std::string errorMessage;
+};
+
+// 任务状态结构
+struct TaskState {
+    std::string taskId;
+    std::vector<ToolCallResult> toolCallHistory;
+    int currentStep;
+    bool isCompleted;
+};
+
 // 数据库配置结构
 struct DatabaseConfig {
     std::string host;

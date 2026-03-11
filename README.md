@@ -116,7 +116,8 @@ sudo ./chat_server
 ![菜单页面](images/image_2.png)
 
 AI对话页面 
-![AI对话页面](images/image_3.png)
+![多轮任务支持](images/image_3.png)
+![并行工具调用](images/image_4.png)
 
 ## 总结
 
