@@ -25,6 +25,7 @@ void ChatSendHandler::handle(const http::HttpRequest& req, http::HttpResponse* r
 		std::string userQuestion;
 		std::string sessionId;
 		std::string modelType;
+		bool enableMCP = false;
 
 		json j;
 		if (!ParseJsonUtil::parseJsonFromBody(req, resp, j)) {
@@ -36,6 +37,7 @@ void ChatSendHandler::handle(const http::HttpRequest& req, http::HttpResponse* r
 		if (j.contains("sessionId")) sessionId = j["sessionId"];
 
 		modelType = j.contains("modelType") ? j["modelType"].get<std::string>() : "1";
+		enableMCP = j.contains("enableMCP") ? j["enableMCP"].get<bool>() : false;
 
 		std::shared_ptr<AIHelper> AIHelperPtr;
 		{
@@ -71,7 +73,7 @@ void ChatSendHandler::handle(const http::HttpRequest& req, http::HttpResponse* r
         };
 
 		// 使用线程池异步处理AI请求，真正避免阻塞IO线程
-		auto future = AIHelperPtr->chatAsync(server_->getBusinessThreadPool(), userId, username, sessionId, userQuestion, modelType, streamCallback);
+		auto future = AIHelperPtr->chatAsync(server_->getBusinessThreadPool(), userId, username, sessionId, userQuestion, modelType, streamCallback, enableMCP);
 		
 		// 在另一个线程中等待结果并处理最终结果
 		server_->getBusinessThreadPool()->enqueue([this, sessionId, userId, future = std::move(future)]() mutable {

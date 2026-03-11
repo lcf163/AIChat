@@ -25,10 +25,49 @@ public:
 
     virtual std::string parseResponse(const json& response) const = 0;
 
-    bool isMCPModel = false;
+    // 验证配置有效性
+    virtual bool validateConfig() const {
+        return !getApiUrl().empty() && !getApiKey().empty();
+    }
+
+    // 获取模型信息
+    virtual std::string getModelInfo() const {
+        return "Model: " + getModel() + ", API URL: " + getApiUrl();
+    }
+
+    // 检查是否支持流式输出
+    virtual bool supportStreamOutput() const {
+        return true;
+    }
+
+    // 检查是否支持工具调用 (MCP - Model Context Protocol)
+    virtual bool supportToolCall() const {
+        return false;
+    }
 };
 
-class AliyunStrategy : public AIStrategy {
+// 基础模型策略类，封装公共逻辑
+class BaseModelStrategy : public AIStrategy {
+public:
+    BaseModelStrategy() = default;
+    ~BaseModelStrategy() override = default;
+
+    // 应用滑动窗口逻辑
+    std::pair<int, int> applySlidingWindow(const std::vector<std::pair<std::string, long long>>& messages) const;
+
+    // 构建消息数组
+    void buildMessages(json& msgArray, const std::vector<std::pair<std::string, long long>>& messages, int start_index, int total_msgs) const;
+
+protected:
+    // 从环境变量或配置中获取 API 密钥
+    std::string getApiKeyFromConfig(const std::string& configKey, const std::string& envKey) const;
+
+    std::string apiKey_;
+    std::string apiUrl_;
+    std::string modelName_;
+};
+
+class AliyunStrategy : public BaseModelStrategy {
 public:
     AliyunStrategy();
     
@@ -38,14 +77,13 @@ public:
 
     json buildRequest(const std::vector<std::pair<std::string, long long>>& messages) const override;
     std::string parseResponse(const json& response) const override;
-
-private:
-    std::string apiKey_;
-    std::string apiUrl_;
-    std::string modelName_;
+    
+    bool supportToolCall() const override {
+        return true;
+    }
 };
 
-class DouBaoStrategy : public AIStrategy {
+class DouBaoStrategy : public BaseModelStrategy {
 public:
     DouBaoStrategy();
     
@@ -55,14 +93,13 @@ public:
 
     json buildRequest(const std::vector<std::pair<std::string, long long>>& messages) const override;
     std::string parseResponse(const json& response) const override;
-
-private:
-    std::string apiKey_;
-    std::string apiUrl_;
-    std::string modelName_;
+    
+    bool supportToolCall() const override {
+        return true;
+    }
 };
 
-class AliyunRAGStrategy : public AIStrategy {
+class AliyunRAGStrategy : public BaseModelStrategy {
 public:
     AliyunRAGStrategy();
     
@@ -74,25 +111,7 @@ public:
     std::string parseResponse(const json& response) const override;
 
 private:
-    std::string apiKey_;
     std::string knowledgeBaseId_;
     std::string apiUrlPrefix_;
     std::string apiUrlSuffix_;
-};
-
-class AliyunMcpStrategy : public AIStrategy {
-public:
-    AliyunMcpStrategy();
-    
-    std::string getApiUrl() const override;
-    std::string getApiKey() const override;
-    std::string getModel() const override;
-
-    json buildRequest(const std::vector<std::pair<std::string, long long>>& messages) const override;
-    std::string parseResponse(const json& response) const override;
-
-private:
-    std::string apiKey_;
-    std::string apiUrl_;
-    std::string modelName_;
 };

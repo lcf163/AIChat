@@ -82,16 +82,18 @@ struct ApiKeysConfig {
     std::string doubaoModelId;
 };
 
+// 基础模型配置结构
+struct BaseModelConfig {
+    std::string apiUrl;
+    std::string modelName;
+};
+
 // 模型配置结构
 struct ModelConfig {
-    struct AliyunConfig {
-        std::string apiUrl;
-        std::string modelName;
+    struct AliyunConfig : public BaseModelConfig {
     };
     
-    struct DoubaoConfig {
-        std::string apiUrl;
-        std::string modelName;
+    struct DoubaoConfig : public BaseModelConfig {
     };
     
     struct AliyunRagConfig {
@@ -99,15 +101,9 @@ struct ModelConfig {
         std::string apiUrlSuffix;
     };
     
-    struct AliyunMcpConfig {
-        std::string apiUrl;
-        std::string modelName;
-    };
-    
     AliyunConfig aliyun;
     DoubaoConfig doubao;
     AliyunRagConfig aliyunRag;
-    AliyunMcpConfig aliyunMcp;
 };
 
 class AIConfig {

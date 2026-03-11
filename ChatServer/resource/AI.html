@@ -292,8 +292,11 @@
                 <option value="1" selected>阿里百炼</option>
                 <option value="2">豆包</option>
                 <option value="3">阿里百炼RAG</option>
-                <option value="4">阿里百炼MCP</option>
             </select>
+            <label for="enableMCP" style="margin-left: 20px;">
+                <input type="checkbox" id="enableMCP">
+                启用工具调用（MCP）
+            </label>
         </div>
 
         <div class="chat-container" id="chat-container"></div>
@@ -314,6 +317,7 @@
         const questionInput = document.getElementById('question');
         const syncBtn = document.getElementById('sync-history-btn');
         const modelTypeSelect = document.getElementById('modelType');
+        const enableMCPCheckbox = document.getElementById('enableMCP');
         const newChatBtn = document.getElementById('newChatBtn');
         
         // Server-Sent Events source
@@ -632,7 +636,7 @@
                     const response = await fetch('/chat/send-new-session', {
                         method: 'POST',
                         headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify({ question, modelType: modelTypeSelect.value })
+                        body: JSON.stringify({ question, modelType: modelTypeSelect.value, enableMCP: enableMCPCheckbox.checked })
                     });
                     const data = await response.json();
                     if (data.success) {
@@ -664,7 +668,7 @@
                     const response = await fetch('/chat/send', {
                         method: 'POST',
                         headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify({ question, modelType: modelTypeSelect.value, sessionId: currentSessionId })
+                        body: JSON.stringify({ question, modelType: modelTypeSelect.value, sessionId: currentSessionId, enableMCP: enableMCPCheckbox.checked })
                     });
                     const data = await response.json();
                     if (data.success) {

@@ -8,26 +8,44 @@ MQManager::MQManager(size_t poolSize)
     // 从配置中获取RabbitMQ信息
     const auto& mqConfig = AIConfig::getInstance().getRabbitMQConfig();
     
-    for (size_t i = 0; i < poolSize_; ++i) {
-        auto conn = std::make_shared<MQConn>();
-        conn->channel = AmqpClient::Channel::Create(
-            mqConfig.host, 
-            mqConfig.port, 
-            mqConfig.username, 
-            mqConfig.password, 
-            mqConfig.vhost);
+    try {
+        for (size_t i = 0; i < poolSize_; ++i) {
+            auto conn = std::make_shared<MQConn>();
+            conn->channel = AmqpClient::Channel::Create(
+                mqConfig.host, 
+                mqConfig.port, 
+                mqConfig.username, 
+                mqConfig.password, 
+                mqConfig.vhost);
 
-        pool_.push_back(conn);
+            pool_.push_back(conn);
+        }
+        LOG_INFO << "RabbitMQ connection pool initialized with " << poolSize_ << " connections";
+    } catch (const std::exception& e) {
+        LOG_ERROR << "Failed to initialize RabbitMQ connection pool: " << e.what();
+        LOG_WARN << "RabbitMQ is not available, continuing without message queue functionality";
+        // 清空连接池，后续操作会检查连接池是否为空
+        pool_.clear();
+        poolSize_ = 0;
     }
 }
 
 void MQManager::publish(const std::string& queue, const std::string& msg) {
+    if (pool_.empty()) {
+        LOG_WARN << "RabbitMQ pool is empty, skipping publish: " << msg.substr(0, 100) << "...";
+        return;
+    }
+    
     size_t index = counter_.fetch_add(1) % poolSize_;
     auto& conn = pool_[index];
 
-    std::lock_guard<std::mutex> lock(conn->mtx);
-    auto message = AmqpClient::BasicMessage::Create(msg);
-    conn->channel->BasicPublish("", queue, message);
+    try {
+        std::lock_guard<std::mutex> lock(conn->mtx);
+        auto message = AmqpClient::BasicMessage::Create(msg);
+        conn->channel->BasicPublish("", queue, message);
+    } catch (const std::exception& e) {
+        LOG_ERROR << "Failed to publish message to RabbitMQ: " << e.what();
+    }
 }
 
 // ------------------- RabbitMQThreadPool -------------------

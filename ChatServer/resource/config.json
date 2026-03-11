@@ -1,12 +1,12 @@
 {
-  "prompt_template": "我是一个第三方中间人，帮客户端传达信息的，你帮我查看用户所说的话是否需要调用工具。特别注意：若需要调用工具，只需要输出json，其它任何内容不需要输出! 如果只是回答用户的问题或者用户所有参数并没有完全对应，请直接输出文本回答。以下是用户所说的话：{user_input}\n你可以使用以下工具:\n{tool_list}\n如果需要调用工具，请确保提供所有必需的参数，并输出JSON格式: {\"tool\":\"工具名\",\"args\":{\"key\":\"value\"}}\n如果缺少必要参数，请直接用自然语言询问用户提供所需信息。\n",
+  "prompt_template": "你是一个智能助手，需要根据用户的问题决定是否使用工具来获取信息。\n\n思考过程：\n1. 分析用户问题，确定是否需要外部信息\n2. 如果需要外部信息，选择合适的工具并调用\n3. 执行工具调用，获取结果\n4. 根据工具结果，给出最终回答\n\n特别注意：\n- 若需要调用工具，只需要输出json，其它任何内容不需要输出！\n- 如果只是回答用户的问题或者用户所有参数并没有完全对应，请直接输出文本回答。\n\n以下是用户所说的话：{user_input}\n\n你可以使用以下工具:\n{tool_list}\n\n如果需要调用工具，请确保提供所有必需的参数，并输出JSON格式: {\"tool\":\"工具名\",\"args\":{\"key\":\"value\"}}\n如果缺少必要参数，请直接用自然语言询问用户提供所需信息。\n\n输出格式要求：\n- 思考过程请在心中完成，不要输出\n- 工具调用：只输出JSON格式，不要包含其他任何内容\n- 直接回答：不需要工具时，直接输出答案\n",
   "log": {
     "level": "INFO"
   },
   "database": {
     "host": "tcp://127.0.0.1:3306",
-    "user": "root",
-    "password": "root",
+    "user": "chatserver",
+    "password": "chatserver",
     "database": "ChatHttpServer",
     "pool_size": 5
   },
@@ -22,9 +22,9 @@
   "api_keys": {
     "dashscope_api_key": "your api_key",
     "knowledge_base_id": "your api_key",
+    "doubao_api_key": "your api_key",
     "baidu_client_id": "your api_key",
-    "baidu_client_secret": "your api_key",
-    "doubao_api_key": "your api_key"
+    "baidu_client_secret": "your api_key"
   },
   "models": {
     "aliyun": {
@@ -38,10 +38,6 @@
     "aliyun_rag": {
       "api_url_prefix": "https://dashscope.aliyuncs.com/api/v1/apps/",
       "api_url_suffix": "/completion"
-    },
-    "aliyun_mcp": {
-      "api_url": "https://dashscope.aliyuncs.com/compatible-mode/v1/chat/completions",
-      "model_name": "qwen-plus"
     }
   },
   "limits": {

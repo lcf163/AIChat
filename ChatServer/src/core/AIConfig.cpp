@@ -118,16 +118,7 @@ bool AIConfig::loadFromFile(const std::string& path) {
                 }
             }
             
-            // 加载阿里云MCP配置
-            if (modelsConfig.contains("aliyun_mcp")) {
-                auto aliyunMcpConfig = modelsConfig["aliyun_mcp"];
-                if (aliyunMcpConfig.contains("api_url")) {
-                    modelConfig_.aliyunMcp.apiUrl = aliyunMcpConfig["api_url"];
-                }
-                if (aliyunMcpConfig.contains("model_name")) {
-                    modelConfig_.aliyunMcp.modelName = aliyunMcpConfig["model_name"];
-                }
-            }
+
         }
 
         // 加载语音服务提供商配置

@@ -23,6 +23,15 @@ public:
 
     std::shared_ptr<AIStrategy> create(const std::string& name);
 
+    // 获取所有注册的模型名称
+    std::vector<std::string> getRegisteredModels() const;
+
+    // 检查模型是否存在
+    bool hasModel(const std::string& name) const;
+
+    // 获取模型信息
+    std::string getModelInfo(const std::string& name) const;
+
 private:
     StrategyFactory() = default;
     std::unordered_map<std::string, Creator> creators_;

@@ -67,8 +67,7 @@ std::string parseLLMChunk(const std::string& chunk) {
 enum modelType {
     AliType = 1,
     DouType = 2,
-    AliRAGType = 3,
-    AliMCPType = 4
+    AliRAGType = 3
 };
 
 // 构造函数
@@ -156,110 +155,119 @@ void AIHelper::addMessage(int userId, const std::string& userName, bool is_user,
 }
 
 // 发送聊天消息
-std::string AIHelper::chat(int userId,std::string userName, std::string sessionId, std::string userQuestion, std::string modelType) {
-    return chatImpl(userId, userName, sessionId, userQuestion, modelType, nullptr);
+std::string AIHelper::chat(int userId,std::string userName, std::string sessionId, std::string userQuestion, std::string modelType, bool enableMCP) {
+    return chatImpl(userId, userName, sessionId, userQuestion, modelType, nullptr, enableMCP);
 }
 
 // 异步发送聊天消息
-std::future<std::string> AIHelper::chatAsync(std::shared_ptr<ThreadPool> pool, int userId, std::string userName, std::string sessionId, std::string userQuestion, std::string modelType, StreamCallback callback) {
+std::future<std::string> AIHelper::chatAsync(std::shared_ptr<ThreadPool> pool, int userId, std::string userName, std::string sessionId, std::string userQuestion, std::string modelType, StreamCallback callback, bool enableMCP) {
     // 使用线程池执行任务
     return pool->enqueue([=]() {
-        return chatImpl(userId, userName, sessionId, userQuestion, modelType, callback);
+        return chatImpl(userId, userName, sessionId, userQuestion, modelType, callback, enableMCP);
     });
 }
 
 // 实际执行聊天逻辑的方法
-std::string AIHelper::chatImpl(int userId, std::string userName, std::string sessionId, std::string userQuestion, std::string modelType, StreamCallback callback) {
+std::string AIHelper::chatImpl(int userId, std::string userName, std::string sessionId, std::string userQuestion, std::string modelType, StreamCallback callback, bool enableMCP) {
     // 设置策略
     setStrategy(StrategyFactory::instance().create(modelType));
     
     // 判断是否为 RAG 模型
     bool isRAG = (modelType == std::to_string(AliRAGType));
 
-    if (!strategy->isMCPModel) {
+    // 判断是否启用 MCP
+    bool useMCP = enableMCP && strategy->supportToolCall();
+
+    if (!useMCP) {
         addMessage(userId, userName, true, userQuestion, sessionId);
         json payload = strategy->buildRequest(this->messages);
         
         std::string fullResponse;
          
         // 只有当有 callback 且 不是 RAG 模型时，才启用流式传输。
-        // 如果是 RAG 模型，即使有 callback，也强制进入 else 分支（非流式）。
-        if (callback && !isRAG) {
-            // 创建一个包装回调，用于累积完整响应
-            StreamCallback wrappedCallback = [callback, &fullResponse](const std::string& delta) {
-                fullResponse += delta;
-                callback(delta);
-            };
-            
-            payload["stream"] = true; // 强制流式
+            // 如果是 RAG 模型，即使有 callback，也强制进入 else 分支（非流式）。
+            if (callback && !isRAG) {
+                // 创建一个包装回调，用于累积完整响应
+                StreamCallback wrappedCallback = [&fullResponse](const std::string& delta) {
+                    fullResponse += delta;
+                };
+                
+                payload["stream"] = true; // 强制流式
 
-            // // 针对普通阿里模型可能需要的参数
-            // if (payload.contains("input")) {
-            //     if (!payload.contains("parameters")) {
-            //         payload["parameters"] = json::object();
-            //     }
-            //     // 普通应用开启流式时推荐开启增量输出，防止重复
-            //     payload["parameters"]["incremental_output"] = true;
-            // }
+                // // 针对普通阿里模型可能需要的参数
+                // if (payload.contains("input")) {
+                //     if (!payload.contains("parameters")) {
+                //         payload["parameters"] = json::object();
+                //     }
+                //     // 普通应用开启流式时推荐开启增量输出，防止重复
+                //     payload["parameters"]["incremental_output"] = true;
+                // }
 
-            executeCurl(payload, wrappedCallback);
-            
-            // 保存AI助手的完整回复到数据库
-            addMessage(userId, userName, false, fullResponse, sessionId);
-            return fullResponse; 
+                executeCurl(payload, wrappedCallback);
+                
+                // 保存AI助手的完整回复到数据库
+                addMessage(userId, userName, false, fullResponse, sessionId);
+                return fullResponse; 
 
-        } else {
-            // ==== 非流式模式 ====
-            
-            // 确保不包含 stream 参数 (防止污染)
-            if (payload.contains("stream")) {
-                payload.erase("stream");
-            }
-
-            // 执行同步请求，获取完整 JSON
-            // 注意：这里传入 nullptr 作为 callback，告诉 executeCurl 不要走流式处理
-            json response = executeCurl(payload, nullptr);
-            std::string answer;
-
-            // 解析响应：优先尝试解析阿里 RAG 的 output.text 格式
-            if (response.contains("output") && response["output"].contains("text")) {
-                if (!response["output"]["text"].is_null()) {
-                    answer = response["output"]["text"].get<std::string>();
-                }
             } else {
-                // 回退到 Strategy 的默认解析 (通常是 OpenAI 格式)
-                answer = strategy->parseResponse(response);
-            }
-            
-            // 如果是 RAG 模式且有回调（前端在等 SSE），手动把完整结果推回去
-            // 这样前端虽然等一会儿，但最终会收到一个 SSE 事件，显示完整内容
-            if (callback && !answer.empty()) {
-                callback(answer);
-            }
+                // ==== 非流式模式 ====
+                
+                // 确保不包含 stream 参数 (防止污染)
+                if (payload.contains("stream")) {
+                    payload.erase("stream");
+                }
 
-            if (answer.empty()) {
-                answer = "[Error] 无法解析响应或响应为空";
-                LOG_ERROR << "Failed to parse response: " << response.dump();
-            }
+                // 执行同步请求，获取完整 JSON
+                // 注意：这里传入 nullptr 作为 callback，告诉 executeCurl 不要走流式处理
+                json response = executeCurl(payload, nullptr);
+                std::string answer;
 
-            addMessage(userId, userName, false, answer, sessionId);
-            return answer;
-        }
+                // 解析响应：优先尝试解析阿里 RAG 的 output.text 格式
+                if (response.contains("output") && response["output"].contains("text")) {
+                    if (!response["output"]["text"].is_null()) {
+                        answer = response["output"]["text"].get<std::string>();
+                    }
+                } else {
+                    // 回退到 Strategy 的默认解析 (通常是 OpenAI 格式)
+                    answer = strategy->parseResponse(response);
+                }
+                
+                // 非MCP模式下不直接调用callback，由调用方处理最终结果
+                // if (callback && !answer.empty()) {
+                //     callback(answer);
+                // }
+
+                if (answer.empty()) {
+                    answer = "[Error] 无法解析响应或响应为空";
+                    LOG_ERROR << "Failed to parse response: " << response.dump();
+                }
+
+                addMessage(userId, userName, false, answer, sessionId);
+                return answer;
+            }
     }
     
     // ======== MCP / Tool Call 逻辑 ========
+
+    addMessage(userId, userName, true, userQuestion, sessionId);
 
     AIConfig& config = AIConfig::getInstance();
     std::string tempUserQuestion = config.buildPrompt(userQuestion);
     messages.push_back({ tempUserQuestion, 0 });
 
+    LOG_INFO << "MCP mode enabled, sending first request with tool prompt";
+
     json firstReq = strategy->buildRequest(this->messages);
     json firstResp = executeCurl(firstReq); 
     std::string aiResult = strategy->parseResponse(firstResp);
+    LOG_INFO << "First AI response: " << aiResult;
     messages.pop_back();
 
     AIToolCall call = config.parseAIResponse(aiResult);
+    LOG_INFO << "Tool call parsed: isToolCall=" << (call.isToolCall ? "true" : "false") << ", toolName=" << (call.isToolCall ? call.toolName : "none");
 
+    std::string finalAnswer;
+    
     if (call.isToolCall) {
         std::shared_ptr<Tool> tool = config.getToolRegistry().getTool(call.toolName);
         if (tool) {
@@ -295,22 +303,24 @@ std::string AIHelper::chatImpl(int userId, std::string userName, std::string ses
         } else {
             messages.push_back({ "[工具调用失败]\n未找到工具: " + call.toolName, 0 });
         }
+        
+        // 第二步请求
+        json secondReq = strategy->buildRequest(this->messages);
+        json secondResp = executeCurl(secondReq);
+        finalAnswer = strategy->parseResponse(secondResp);
+        messages.push_back({ finalAnswer, 0 });
     } else {
-        messages.push_back({ aiResult, 0 });
+        // 不需要工具调用，直接使用第一个请求的结果
+        finalAnswer = aiResult;
+        messages.push_back({ finalAnswer, 0 });
     }
-
-    // 第二步请求
-    json secondReq = strategy->buildRequest(this->messages);
-    json secondResp = executeCurl(secondReq);
-    std::string finalAnswer = strategy->parseResponse(secondResp);
-    messages.push_back({ finalAnswer, 0 });
     
     addMessage(userId, userName, false, finalAnswer, sessionId);
     
-    // 如果有回调，发送最终结果
-    if (callback) {
-        callback(finalAnswer);
-    }
+    // MCP模式下不直接调用callback，由调用方处理最终结果
+    // if (callback) {
+    //     callback(finalAnswer);
+    // }
 
     return finalAnswer;
 }

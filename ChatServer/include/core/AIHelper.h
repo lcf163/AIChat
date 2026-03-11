@@ -32,10 +32,10 @@ public:
     void addMessage(int userId, const std::string& userName, bool is_user, const std::string& userInput, std::string sessionId);
     // 发送聊天消息，返回AI的响应内容
     // messages: [{"role":"system","content":"..."}, {"role":"user","content":"..."}]
-    std::string chat(int userId, std::string userName, std::string sessionId, std::string userQuestion, std::string modelType);
+    std::string chat(int userId, std::string userName, std::string sessionId, std::string userQuestion, std::string modelType, bool enableMCP = false);
 
     // 异步发送聊天消息，支持流式回调
-    std::future<std::string> chatAsync(std::shared_ptr<ThreadPool> pool, int userId, std::string userName, std::string sessionId, std::string userQuestion, std::string modelType, StreamCallback callback = nullptr);
+    std::future<std::string> chatAsync(std::shared_ptr<ThreadPool> pool, int userId, std::string userName, std::string sessionId, std::string userQuestion, std::string modelType, StreamCallback callback = nullptr, bool enableMCP = false);
 
     // 发送自定义请求体
     json request(const json& payload);
@@ -56,7 +56,7 @@ private:
     static size_t WriteCallback(void* contents, size_t size, size_t nmemb, void* userp);
 
     // 实际执行聊天逻辑的方法
-    std::string chatImpl(int userId, std::string userName, std::string sessionId, std::string userQuestion, std::string modelType, StreamCallback callback = nullptr);
+    std::string chatImpl(int userId, std::string userName, std::string sessionId, std::string userQuestion, std::string modelType, StreamCallback callback = nullptr, bool enableMCP = false);
 
 private:
     std::shared_ptr<AIStrategy> strategy;
